@@ -87,7 +87,7 @@ app.get('/api/jira/issues/:projectKey', async (req, res) => {
 
     const jql = encodeURIComponent(`project="${projectKey}" ORDER BY updated DESC`);
 
-    // ✅ Fixed: correct endpoint + added status field
+
     const response = await axios.get(
       `${domain}/rest/api/3/search?jql=${jql}&maxResults=50&fields=summary,status,priority`,
       { headers }
@@ -118,7 +118,7 @@ app.post('/api/jira', async (req, res) => {
 
     const { domain, headers } = getJiraConfig();
 
-    // ✅ Fixed: use api/3 + renderedFields for clean description
+
     const response = await axios.get(
       `${domain}/rest/api/3/issue/${issueKey}?expand=renderedFields`,
       { headers }
@@ -127,7 +127,7 @@ app.post('/api/jira', async (req, res) => {
     const issue = response.data;
     const summary = issue.fields?.summary || 'No Summary';
 
-    // ✅ Fixed: extract plain text from ADF description
+
     const description = extractTextFromADF(issue.fields?.description);
 
     const formattedReq = `Title: ${summary}\n\nDescription:\n${description}`;
