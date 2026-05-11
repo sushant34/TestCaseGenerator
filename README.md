@@ -134,4 +134,4 @@ Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-nat
 
 ---
 
-Built for Hackathon 2026 — Agentic AI Edition 🏆
+
