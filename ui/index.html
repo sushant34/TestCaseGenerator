@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Test Case Generator — Local AI</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap');
+  :root {
+    --bg:#0a0a0f; --surface:#111118; --surface2:#1a1a24;
+    --border:#2a2a3a; --accent:#00e5a0; --accent2:#ff4d6d;
+    --accent3:#7b5ea7; --text:#e8e8f0; --muted:#6b6b80;
+    --font-display:'Syne',sans-serif; --font-mono:'Space Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,160,0.03)1px,transparent 1px),linear-gradient(90deg,rgba(0,229,160,0.03)1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+  .app{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:24px 20px}
+
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;padding-bottom:18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px}
+  .logo h1{font-family:var(--font-display);font-size:1.8rem;font-weight:800;background:linear-gradient(135deg,var(--accent),#00b4d8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .logo p{font-size:0.65rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
+  .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+  /* Status indicator */
+  .status-bar{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:8px 14px;font-size:0.7rem}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background 0.3s}
+  .status-dot.online{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+  .status-dot.error{background:var(--accent2);box-shadow:0 0 6px var(--accent2)}
+  .status-dot.checking{animation:pulse 1s ease-in-out infinite;background:#f6c90e}
+  @keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}
+  .status-text{color:var(--muted)}
+  .status-text span{color:var(--text)}
+
+  /* Model selector */
+  .model-row{display:flex;align-items:center;gap:8px}
+  .model-row label{font-size:0.65rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+  select{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.75rem;padding:6px 10px;border-radius:4px;outline:none;cursor:pointer;min-width:160px}
+  select:focus{border-color:var(--accent)}
+  select option{background:var(--surface)}
+
+  /* Stats */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:14px;text-align:center}
+  .stat-val{font-family:var(--font-display);font-size:1.5rem;font-weight:800;line-height:1;margin-bottom:4px}
+  .stat-label{font-size:0.6rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+
+  /* Main grid */
+  .main-grid{display:grid;grid-template-columns:380px 1fr;gap:16px;margin-bottom:16px}
+  @media(max-width:820px){.main-grid{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}}
+
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+  .panel-head{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface2)}
+  .panel-head .dot{width:7px;height:7px;border-radius:50%}
+  .dot-g{background:var(--accent);box-shadow:0 0 5px var(--accent)}
+  .dot-r{background:var(--accent2);box-shadow:0 0 5px var(--accent2)}
+  .dot-p{background:var(--accent3);box-shadow:0 0 5px var(--accent3)}
+  .panel-title{font-family:var(--font-display);font-size:0.7rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+
+  .input-area{padding:14px;display:flex;flex-direction:column;gap:12px}
+  label{font-size:0.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+  textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--font-mono);font-size:0.78rem;padding:9px 11px;resize:vertical;outline:none;transition:border-color 0.2s;line-height:1.6;min-height:150px}
+  textarea:focus{border-color:var(--accent)}
+
+  .tags-row{display:flex;flex-wrap:wrap;gap:6px}
+  .tag{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:0.62rem;padding:4px 9px;border-radius:2px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.15s}
+  .tag:hover,.tag.on{border-color:var(--accent);color:var(--accent);background:rgba(0,229,160,0.07)}
+
+  .gen-btn{width:100%;background:var(--accent);color:#0a0a0f;border:none;padding:13px;font-family:var(--font-display);font-size:0.85rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;cursor:pointer;border-radius:2px;transition:all 0.2s}
+  .gen-btn:hover{background:#00ffc3}
+  .gen-btn:disabled{background:var(--border);color:var(--muted);cursor:not-allowed}
+
+  /* Output */
+  .out-area{padding:14px;max-height:520px;overflow-y:auto;min-height:200px}
+  .out-area::-webkit-scrollbar{width:3px}
+  .out-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px;color:var(--muted);text-align:center}
+  .empty svg{opacity:0.25}
+  .empty p{font-size:0.72rem;line-height:1.8}
+
+  .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:14px}
+  .ring{width:30px;height:30px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-txt{font-size:0.68rem;color:var(--accent);letter-spacing:2px;text-transform:uppercase;animation:pulse 1.4s ease-in-out infinite}
+
+  .suite-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .suite-name{font-family:var(--font-display);font-size:0.82rem;font-weight:700;color:var(--accent)}
+  .suite-count{font-size:0.62rem;color:var(--muted)}
+
+  .tc{background:var(--bg);border:1px solid var(--border);border-left:3px solid transparent;border-radius:2px;margin-bottom:9px;overflow:hidden}
+  .tc.ph{border-left-color:var(--accent2)}
+  .tc.pm{border-left-color:#f6c90e}
+  .tc.pl{border-left-color:var(--accent)}
+
+  .tc-head{display:flex;align-items:flex-start;justify-content:space-between;padding:8px 11px;cursor:pointer;gap:8px;background:var(--surface2);transition:background 0.15s}
+  .tc-head:hover{background:rgba(255,255,255,0.02)}
+  .tc-id{font-size:0.6rem;color:var(--muted)}
+  .tc-name{font-size:0.78rem;font-weight:700;font-family:var(--font-display);margin:2px 0;line-height:1.3}
+  .tc-meta{display:flex;gap:5px;align-items:center;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+
+  .pill{font-size:0.58rem;padding:2px 6px;border-radius:1px;letter-spacing:1px;text-transform:uppercase;font-weight:700;white-space:nowrap}
+  .pill-func{background:rgba(0,229,160,0.12);color:var(--accent)}
+  .pill-neg{background:rgba(255,77,109,0.12);color:var(--accent2)}
+  .pill-edge{background:rgba(246,201,14,0.12);color:#f6c90e}
+  .pill-perf{background:rgba(123,94,167,0.12);color:#a78bfa}
+  .pill-sec{background:rgba(255,100,50,0.12);color:#ff6432}
+  .pill-int{background:rgba(0,180,216,0.12);color:#00b4d8}
+  .pill-h{background:rgba(255,77,109,0.12);color:var(--accent2)}
+  .pill-m{background:rgba(246,201,14,0.12);color:#f6c90e}
+  .pill-l{background:rgba(0,229,160,0.12);color:var(--accent)}
+
+  .chevron{font-size:0.7rem;transition:transform 0.2s;display:inline-block;color:var(--muted)}
+  .chevron.open{transform:rotate(90deg)}
+
+  .tc-body{padding:11px;display:none}
+  .tc-body.open{display:block}
+  .tc-sec{margin-bottom:9px}
+  .tc-sec-lbl{font-size:0.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .tc-sec-val{font-size:0.72rem;line-height:1.7}
+  .steps-ol{list-style:none;counter-reset:s}
+  .steps-ol li{counter-increment:s;padding:3px 0 3px 22px;position:relative;font-size:0.72rem;line-height:1.6;border-bottom:1px solid rgba(255,255,255,0.03)}
+  .steps-ol li:last-child{border:none}
+  .steps-ol li::before{content:counter(s);position:absolute;left:0;top:5px;width:15px;height:15px;background:var(--accent3);color:white;border-radius:50%;font-size:0.55rem;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .exp-box{background:rgba(0,229,160,0.05);border:1px solid rgba(0,229,160,0.15);border-radius:2px;padding:7px 10px;font-size:0.72rem;line-height:1.6}
+
+  .act-bar{display:flex;gap:7px;padding:11px 14px;border-top:1px solid var(--border);background:var(--surface2)}
+  .act-btn{flex:1;background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:0.62rem;padding:7px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;border-radius:2px;transition:all 0.15s}
+  .act-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,229,160,0.06)}
+
+  /* Chat */
+  .chat-panel{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:16px}
+  .chat-thread{padding:12px;max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+  .chat-thread::-webkit-scrollbar{width:3px}
+  .chat-thread::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+  .msg{display:flex;gap:8px;align-items:flex-start}
+  .msg.user{flex-direction:row-reverse}
+  .av{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:700;flex-shrink:0;font-family:var(--font-display)}
+  .av.ai{background:rgba(0,229,160,0.15);color:var(--accent)}
+  .av.user{background:var(--surface2);color:var(--muted)}
+  .bubble{max-width:85%;font-size:0.72rem;line-height:1.6;padding:7px 10px;border-radius:2px;border:1px solid var(--border)}
+  .msg.ai .bubble{background:var(--surface2)}
+  .msg.user .bubble{background:rgba(0,229,160,0.08);border-color:rgba(0,229,160,0.2);color:var(--accent)}
+
+  .sug-row{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-top:1px solid var(--border)}
+  .sug{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:0.6rem;padding:4px 9px;border-radius:2px;cursor:pointer;transition:all 0.15s;letter-spacing:0.5px}
+  .sug:hover{border-color:var(--accent3);color:var(--accent3)}
+
+  .chat-input-row{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border);background:var(--surface2)}
+  .chat-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--font-mono);font-size:0.75rem;padding:7px 10px;outline:none;resize:none;line-height:1.5}
+  .chat-input:focus{border-color:var(--accent)}
+  .chat-send{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.68rem;padding:7px 14px;border-radius:2px;cursor:pointer;transition:all 0.15s;white-space:nowrap;letter-spacing:1px;text-transform:uppercase}
+  .chat-send:hover{border-color:var(--accent);color:var(--accent)}
+  .chat-send:disabled{opacity:0.4;cursor:not-allowed}
+
+  .turn-badge{margin-left:auto;font-size:0.6rem;color:var(--muted)}
+  .new-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-family:var(--font-mono);font-size:0.62rem;padding:4px 10px;border-radius:2px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.15s}
+  .new-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+  .hidden{display:none}
+  
+  /* Tabs */
+  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:12px}
+  .tab-btn{flex:1;background:transparent;border:none;color:var(--muted);font-family:var(--font-mono);font-size:0.7rem;padding:10px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s;border-bottom:2px solid transparent}
+  .tab-btn:hover{color:var(--text)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  
+  .tab-content{display:none}
+  .tab-content.active{display:block}
+  
+  /* File & Jira Inputs */
+  .input-group{margin-bottom:10px}
+  .input-group label{font-size:0.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:5px}
+  .input-group input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--font-mono);font-size:0.75rem;padding:8px 10px;outline:none;transition:border-color 0.2s}
+  .input-group input:focus{border-color:var(--accent)}
+  
+  .sec-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:0.7rem;padding:8px 14px;border-radius:2px;cursor:pointer;transition:all 0.15s;text-transform:uppercase;letter-spacing:1px;width:100%}
+  .sec-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .sec-btn:disabled{opacity:0.5;cursor:not-allowed}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';</script>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">
+      <h1>⬡ Test Case Generator</h1>
+      <p>Local AI · Powered by Ollama</p>
+    </div>
+    <div class="header-right">
+      <div class="model-row">
+        <label>Model</label>
+        <select id="modelSel">
+          <option value="llama3">llama3</option>
+          <option value="mistral">mistral</option>
+          <option value="gemma3">gemma3</option>
+          <option value="qwen2">qwen2</option>
+          <option value="phi3">phi3</option>
+        </select>
+      </div>
+      <div class="status-bar">
+        <div class="status-dot checking" id="statusDot"></div>
+        <div class="status-text" id="statusText"><span>Checking Ollama…</span></div>
+      </div>
+      <button class="new-btn" onclick="newSession()">↺ New session</button>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-row hidden" id="statsRow">
+    <div class="stat"><div class="stat-val" id="sTotal" style="color:var(--accent)">0</div><div class="stat-label">Test cases</div></div>
+    <div class="stat"><div class="stat-val" id="sHigh" style="color:var(--accent2)">0</div><div class="stat-label">High priority</div></div>
+    <div class="stat"><div class="stat-val" id="sTypes">0</div><div class="stat-label">Types covered</div></div>
+    <div class="stat"><div class="stat-val" id="sEdge" style="color:#f6c90e">0</div><div class="stat-label">Edge cases</div></div>
+  </div>
+
+  <div class="main-grid">
+    <!-- Input -->
+    <div class="panel">
+      <div class="panel-head"><div class="dot dot-g"></div><span class="panel-title">Requirement Input</span></div>
+      <div class="input-area">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('tab-text')">Text</button>
+          <button class="tab-btn" onclick="switchTab('tab-file')">File</button>
+          <button class="tab-btn" onclick="switchTab('tab-jira')">Jira</button>
+        </div>
+
+        <div id="tab-text" class="tab-content active">
+          <label>User story / requirement</label>
+          <textarea id="reqInput" placeholder="As a user, I want to log in with email and password so that I can access my account securely.
+
+Acceptance criteria:
+• Email must be valid format
+• Password must be 8+ characters"></textarea>
+        </div>
+
+        <div id="tab-file" class="tab-content">
+          <div class="input-group">
+            <label>Upload File (.txt, .csv, .md, .pdf)</label>
+            <input type="file" id="fileInput" accept=".txt,.csv,.md,.pdf" onchange="handleFileUpload(event)">
+          </div>
+          <div id="fileStatus" style="font-size:0.65rem;color:var(--muted);margin-bottom:10px"></div>
+        </div>
+
+        <div id="tab-jira" class="tab-content">
+          <div class="input-group">
+            <label>Project</label>
+            <select id="jiraProjectSel" onchange="loadJiraIssues()" style="width:100%;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:2px;font-family:var(--font-mono);font-size:0.75rem;">
+              <option value="">Select a Project...</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Issue</label>
+            <select id="jiraIssueSel" disabled style="width:100%;padding:8px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:2px;font-family:var(--font-mono);font-size:0.75rem;">
+              <option value="">Select an Issue...</option>
+            </select>
+          </div>
+          <button class="sec-btn" id="jiraBtn" onclick="fetchJira()" disabled>Fetch Issue</button>
+          <div id="jiraStatus" style="font-size:0.65rem;color:var(--accent2);margin-top:5px;display:none"></div>
+        </div>
+
+        <div>
+          <label>Focus areas</label>
+          <div class="tags-row" id="focusTags">
+            <button class="tag on" data-tag="functional">Functional</button>
+            <button class="tag on" data-tag="negative">Negative</button>
+            <button class="tag on" data-tag="edge">Edge cases</button>
+            <button class="tag" data-tag="performance">Performance</button>
+            <button class="tag" data-tag="security">Security</button>
+            <button class="tag" data-tag="integration">Integration</button>
+          </div>
+        </div>
+        <div>
+          <label>Testing context</label>
+          <select id="ctxSel">
+            <option value="web">Web application</option>
+            <option value="mobile">Mobile application</option>
+            <option value="api">API / Backend</option>
+            <option value="mixed" selected>Mixed (Web + API + Mobile)</option>
+          </select>
+        </div>
+        <div>
+          <label>Detail level</label>
+          <select id="detailSel">
+            <option value="concise">Concise</option>
+            <option value="standard" selected>Standard</option>
+            <option value="detailed">Detailed</option>
+          </select>
+        </div>
+        <button class="gen-btn" id="genBtn" onclick="generate()">⚡ Generate Test Cases</button>
+      </div>
+    </div>
+
+    <!-- Output -->
+    <div class="panel" style="display:flex;flex-direction:column">
+      <div class="panel-head"><div class="dot dot-r"></div><span class="panel-title">Generated Test Suite</span></div>
+      <div class="out-area" id="outArea">
+        <div class="empty">
+          <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+          <p>Enter a requirement and click<br/>Generate to create your test suite.</p>
+        </div>
+      </div>
+      <div class="act-bar hidden" id="actBar">
+        <button class="act-btn" onclick="copyMd()">⎘ Copy Markdown</button>
+        <button class="act-btn" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="act-btn" onclick="clearOut()">✕ Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-turn Chat -->
+  <div class="chat-panel hidden" id="chatPanel">
+    <div class="panel-head">
+      <div class="dot dot-p"></div>
+      <span class="panel-title">Refine with AI</span>
+      <span class="turn-badge" id="turnBadge"></span>
+    </div>
+    <div class="chat-thread" id="chatThread"></div>
+    <div class="sug-row">
+      <button class="sug" onclick="useSug(this)">Add 3 more security test cases</button>
+      <button class="sug" onclick="useSug(this)">Make high priority cases more detailed</button>
+      <button class="sug" onclick="useSug(this)">Add edge cases for empty inputs</button>
+      <button class="sug" onclick="useSug(this)">Add integration test cases</button>
+      <button class="sug" onclick="useSug(this)">Generate performance test cases</button>
+    </div>
+    <div class="chat-input-row">
+      <textarea class="chat-input" id="chatInput" rows="1" placeholder='e.g. "Add more negative tests" or "Make TC-003 more detailed"' onkeydown="chatKey(event)"></textarea>
+      <button class="chat-send" id="chatSend" onclick="sendChat()">Send ↗</button>
+    </div>
+  </div>
+
+</div>
+<script>
+const OLLAMA = '';  // nginx proxies /ollama/ → ollama:11434
+let history = [];
+let lastCases = [];
+let activeTags = new Set(['functional','negative','edge']);
+
+// Tabs
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+}
+
+// File Upload
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('fileStatus');
+  status.textContent = `Reading ${file.name}...`;
+  
+  try {
+    let text = '';
+    if (file.name.endsWith('.pdf')) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+    } else {
+      text = await file.text();
+    }
+    document.getElementById('reqInput').value = text;
+    status.textContent = `Successfully extracted text from ${file.name}. You can switch back to the Text tab to edit it.`;
+  } catch (err) {
+    status.textContent = `Error reading file: ${err.message}`;
+  }
+}
+
+// Jira Dropdown Logic
+async function loadJiraProjects() {
+  const pSel = document.getElementById('jiraProjectSel');
+  if (pSel.options.length > 1) return; // Already loaded
+  try {
+    const res = await fetch('/api/jira/projects');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load projects');
+    
+    data.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.key;
+      opt.textContent = `${p.name} (${p.key})`;
+      pSel.appendChild(opt);
+    });
+  } catch (err) {
+    const status = document.getElementById('jiraStatus');
+    status.style.display = 'block';
+    status.textContent = 'Error loading projects: ' + err.message;
+  }
+}
+
+async function loadJiraIssues() {
+  const pSel = document.getElementById('jiraProjectSel');
+  const iSel = document.getElementById('jiraIssueSel');
+  const btn = document.getElementById('jiraBtn');
+  const projectKey = pSel.value;
+  
+  iSel.innerHTML = '<option value="">Select an Issue...</option>';
+  iSel.disabled = true;
+  btn.disabled = true;
+  
+  if (!projectKey) return;
+  
+  try {
+    const res = await fetch(`/api/jira/issues/${projectKey}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load issues');
+    
+    data.forEach(i => {
+      const opt = document.createElement('option');
+      opt.value = i.key;
+      opt.textContent = `${i.key}: ${i.summary}`;
+      iSel.appendChild(opt);
+    });
+    iSel.disabled = false;
+    
+    iSel.onchange = () => {
+      btn.disabled = !iSel.value;
+    };
+  } catch (err) {
+    const status = document.getElementById('jiraStatus');
+    status.style.display = 'block';
+    status.textContent = 'Error loading issues: ' + err.message;
+  }
+}
+
+// Ensure projects load when Jira tab is opened
+const originalSwitchTab = switchTab;
+switchTab = function(tabId) {
+  originalSwitchTab(tabId);
+  if (tabId === 'tab-jira') {
+    loadJiraProjects();
+  }
+}
+
+// Jira Fetch
+async function fetchJira() {
+  const issueKey = document.getElementById('jiraIssueSel').value;
+  const status = document.getElementById('jiraStatus');
+  
+  if (!issueKey) return;
+  
+  const btn = document.getElementById('jiraBtn');
+  btn.disabled = true;
+  btn.textContent = 'Fetching...';
+  status.style.display = 'none';
+  
+  try {
+    const res = await fetch('/api/jira', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ issueKey })
+    });
+    
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch Jira issue');
+    
+    document.getElementById('reqInput').value = data.requirement;
+    status.style.display = 'block';
+    status.style.color = 'var(--accent)';
+    status.textContent = 'Successfully fetched Jira issue! Switch to the Text tab to view it.';
+  } catch (err) {
+    status.style.display = 'block';
+    status.style.color = 'var(--accent2)';
+    status.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch Issue';
+  }
+}
+
+// Tag toggles
+document.querySelectorAll('.tag').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const t=b.dataset.tag;
+    if(activeTags.has(t)){activeTags.delete(t);b.classList.remove('on')}
+    else{activeTags.add(t);b.classList.add('on')}
+  });
+});
+
+// Check Ollama health on load
+async function checkOllama(){
+  const dot=document.getElementById('statusDot');
+  const txt=document.getElementById('statusText');
+  try{
+    const r=await fetch(`/ollama/api/tags`,{signal:AbortSignal.timeout(4000)});
+    if(r.ok){
+      const d=await r.json();
+      const models=(d.models||[]).map(m=>m.name.split(':')[0]);
+      dot.className='status-dot online';
+      txt.innerHTML=`<span>Ollama online</span> · ${models.length} model(s) loaded`;
+      if(models.length>0){
+        const sel=document.getElementById('modelSel');
+        sel.innerHTML='';
+        models.forEach(m=>{
+          const o=document.createElement('option');
+          o.value=m;o.textContent=m;sel.appendChild(o);
+        });
+      }
+    } else throw new Error('not ok');
+  } catch(e){
+    dot.className='status-dot error';
+    txt.innerHTML=`<span style="color:var(--accent2)">Ollama offline</span> · is it running?`;
+  }
+}
+checkOllama();
+setInterval(checkOllama,15000);
+
+function getSysPrompt(){
+  return `You are an expert QA engineer. Generate comprehensive test cases for software requirements.
+CRITICAL: Respond ONLY with valid JSON. No markdown, no backticks, no explanation text before or after.
+Return exactly this structure:
+{"suite_name":"string","test_cases":[{"id":"TC-001","name":"string","type":"functional|negative|edge|performance|security|integration","priority":"high|medium|low","preconditions":"string","steps":["step1","step2","step3"],"expected_result":"string","test_data":"string"}]}
+On refinement requests, return the FULL updated test_cases list. Generate 8-12 test cases initially.`;
+}
+
+async function callOllama(userMsg){
+  const model=document.getElementById('modelSel').value;
+  history.push({role:'user',content:userMsg});
+  if(history.length>20) history=history.slice(-20);
+
+  const res=await fetch(`/ollama/api/chat`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      model,
+      stream:false,
+      messages:[
+        {role:'system',content:getSysPrompt()},
+        ...history
+      ]
+    })
+  });
+  if(!res.ok) throw new Error(`Ollama error: ${res.status}`);
+  const d=await res.json();
+  const text=d.message?.content||'';
+  history.push({role:'assistant',content:text});
+  return text;
+}
+
+function parseReply(text){
+  try{
+    const clean=text.replace(/```json|```/g,'').trim();
+    const start=clean.indexOf('{');
+    const end=clean.lastIndexOf('}');
+    if(start===-1||end===-1) throw new Error('no json');
+    return JSON.parse(clean.substring(start,end+1));
+  }catch(e){return null;}
+}
+
+async function generate(){
+  const req=document.getElementById('reqInput').value.trim();
+  if(!req){alert('Please enter a requirement.');return;}
+  history=[];
+  const focus=[...activeTags].join(', ');
+  const ctx=document.getElementById('ctxSel').value;
+  const detail=document.getElementById('detailSel').value;
+  const msg=`Generate test cases for:\n\n${req}\n\nFocus areas: ${focus}\nContext: ${ctx}\nDetail level: ${detail}`;
+
+  setBtnLoading('genBtn',true);
+  showLoading('outArea');
+  try{
+    const reply=await callOllama(msg);
+    const parsed=parseReply(reply);
+    if(!parsed) throw new Error('Could not parse JSON from model response');
+    lastCases=parsed.test_cases||[];
+    renderCases(parsed);
+    updateStats(lastCases);
+    document.getElementById('actBar').classList.remove('hidden');
+    document.getElementById('chatPanel').classList.remove('hidden');
+    document.getElementById('statsRow').classList.remove('hidden');
+    clearThread();
+    addMsg('ai',`Generated ${lastCases.length} test cases. Use the chat below to refine — ask me to add more cases, adjust priorities, or cover new scenarios.`);
+    updateTurns();
+  }catch(e){
+    document.getElementById('outArea').innerHTML=`<div class="empty"><p style="color:var(--accent2)">⚠ ${e.message}<br/>Make sure Ollama is running and the model is pulled.</p></div>`;
+  }
+  setBtnLoading('genBtn',false);
+}
+
+async function sendChat(){
+  const inp=document.getElementById('chatInput');
+  const msg=inp.value.trim();
+  if(!msg||history.length===0) return;
+  inp.value='';
+  addMsg('user',msg);
+  setBtnLoading('chatSend',true);
+  addThinking();
+  try{
+    const reply=await callOllama(msg);
+    removeThinking();
+    const parsed=parseReply(reply);
+    if(parsed&&parsed.test_cases){
+      lastCases=parsed.test_cases;
+      renderCases(parsed);
+      updateStats(lastCases);
+      addMsg('ai',`Updated! Now showing ${lastCases.length} test cases. Anything else?`);
+    } else {
+      const short=reply.length>280?reply.substring(0,280)+'…':reply;
+      addMsg('ai',short);
+    }
+    updateTurns();
+  }catch(e){
+    removeThinking();
+    addMsg('ai',`Error: ${e.message}`);
+  }
+  setBtnLoading('chatSend',false);
+}
+
+function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
+function useSug(b){document.getElementById('chatInput').value=b.textContent;sendChat();}
+
+function addMsg(role,text){
+  const t=document.getElementById('chatThread');
+  const d=document.createElement('div');
+  d.className=`msg ${role}`;
+  d.innerHTML=`<div class="av ${role}">${role==='ai'?'QA':'You'}</div><div class="bubble">${text}</div>`;
+  t.appendChild(d);
+  t.scrollTop=t.scrollHeight;
+}
+
+function addThinking(){
+  const t=document.getElementById('chatThread');
+  const d=document.createElement('div');
+  d.className='msg ai';d.id='thinking';
+  d.innerHTML=`<div class="av ai">QA</div><div class="bubble" style="color:var(--muted)"><span style="display:inline-block;width:12px;height:12px;border:1.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle;margin-right:6px"></span>Thinking…</div>`;
+  t.appendChild(d);t.scrollTop=t.scrollHeight;
+}
+function removeThinking(){const e=document.getElementById('thinking');if(e)e.remove();}
+function clearThread(){document.getElementById('chatThread').innerHTML='';}
+function updateTurns(){const n=Math.floor(history.length/2);document.getElementById('turnBadge').textContent=`${n} turn${n!==1?'s':''}`;}
+
+function renderCases(parsed){
+  const area=document.getElementById('outArea');
+  const cases=parsed.test_cases||[];
+  const typeClass={functional:'pill-func',negative:'pill-neg',edge:'pill-edge',performance:'pill-perf',security:'pill-sec',integration:'pill-int'};
+  const prClass={high:'pill-h',medium:'pill-m',low:'pill-l'};
+  const prBorder={high:'ph',medium:'pm',low:'pl'};
+  let h=`<div class="suite-head"><div class="suite-name">${parsed.suite_name||'Test Suite'}</div><div class="suite-count">${cases.length} cases</div></div>`;
+  cases.forEach((tc,i)=>{
+    const tp=tc.type||'functional';
+    const pr=tc.priority||'medium';
+    const steps=(tc.steps||[]).map(s=>`<li>${s}</li>`).join('');
+    h+=`<div class="tc ${prBorder[pr]||'pm'}" style="animation:fadeIn 0.3s ${i*45}ms both">
+      <div class="tc-head" onclick="toggle('${tc.id}',this)">
+        <div><div class="tc-id">${tc.id}</div><div class="tc-name">${tc.name}</div></div>
+        <div class="tc-meta">
+          <span class="pill ${typeClass[tp]||'pill-func'}">${tp}</span>
+          <span class="pill ${prClass[pr]||'pill-m'}">${pr}</span>
+          <span class="chevron" id="ch-${tc.id}">▶</span>
+        </div>
+      </div>
+      <div class="tc-body" id="body-${tc.id}">
+        ${tc.preconditions?`<div class="tc-sec"><div class="tc-sec-lbl">Preconditions</div><div class="tc-sec-val">${tc.preconditions}</div></div>`:''}
+        <div class="tc-sec"><div class="tc-sec-lbl">Steps</div><ol class="steps-ol">${steps}</ol></div>
+        <div class="tc-sec"><div class="tc-sec-lbl">Expected result</div><div class="exp-box">${tc.expected_result}</div></div>
+        ${tc.test_data?`<div class="tc-sec"><div class="tc-sec-lbl">Test data</div><div class="tc-sec-val" style="color:var(--muted)">${tc.test_data}</div></div>`:''}
+      </div>
+    </div>`;
+  });
+  area.innerHTML=h;
+}
+
+function toggle(id,hd){
+  const b=document.getElementById('body-'+id);
+  const c=document.getElementById('ch-'+id);
+  if(b.classList.contains('open')){b.classList.remove('open');c.classList.remove('open')}
+  else{b.classList.add('open');c.classList.add('open')}
+}
+
+function updateStats(cases){
+  document.getElementById('sTotal').textContent=cases.length;
+  document.getElementById('sHigh').textContent=cases.filter(c=>c.priority==='high').length;
+  document.getElementById('sTypes').textContent=new Set(cases.map(c=>c.type)).size;
+  document.getElementById('sEdge').textContent=cases.filter(c=>c.type==='edge').length;
+}
+
+function showLoading(id){
+  document.getElementById(id).innerHTML=`<div class="loading"><div class="ring"></div><div class="loading-txt">Running local AI…</div></div>`;
+}
+
+function setBtnLoading(id,on){
+  const b=document.getElementById(id);
+  b.disabled=on;
+  if(id==='genBtn') b.textContent=on?'⏳ Generating…':'⚡ Generate Test Cases';
+  if(id==='chatSend') b.textContent=on?'…':'Send ↗';
+}
+
+function newSession(){
+  history=[];lastCases=[];
+  document.getElementById('outArea').innerHTML=`<div class="empty"><svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg><p>Enter a requirement and click<br/>Generate to create your test suite.</p></div>`;
+  document.getElementById('actBar').classList.add('hidden');
+  document.getElementById('chatPanel').classList.add('hidden');
+  document.getElementById('statsRow').classList.add('hidden');
+  clearThread();
+}
+
+function clearOut(){newSession();}
+
+function copyMd(){
+  if(!lastCases.length)return;
+  let md='# Test Suite\n\n';
+  lastCases.forEach(tc=>{
+    md+=`## ${tc.id}: ${tc.name}\n- **Type:** ${tc.type} | **Priority:** ${tc.priority}\n`;
+    if(tc.preconditions)md+=`- **Preconditions:** ${tc.preconditions}\n`;
+    md+=`\n**Steps:**\n`;
+    (tc.steps||[]).forEach((s,i)=>md+=`${i+1}. ${s}\n`);
+    md+=`\n**Expected result:** ${tc.expected_result}\n`;
+    if(tc.test_data)md+=`**Test data:** ${tc.test_data}\n`;
+    md+='\n---\n\n';
+  });
+  navigator.clipboard.writeText(md).then(()=>{
+    const b=document.querySelector('.act-btn');
+    const o=b.textContent;b.textContent='✓ Copied!';
+    setTimeout(()=>b.textContent=o,2000);
+  });
+}
+
+function exportCSV(){
+  if(!lastCases.length)return;
+  let csv='ID,Name,Type,Priority,Preconditions,Expected Result,Test Data\n';
+  lastCases.forEach(tc=>{
+    const e=v=>`"${(v||'').replace(/"/g,'""')}"`;
+    csv+=`${tc.id},${e(tc.name)},${tc.type},${tc.priority},${e(tc.preconditions)},${e(tc.expected_result)},${e(tc.test_data)}\n`;
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='test_cases.csv';a.click();
+}
+
+const style=document.createElement('style');
+style.textContent='@keyframes fadeIn{to{opacity:1}}';
+document.head.appendChild(style);
+</script>
+</body>
+</html>

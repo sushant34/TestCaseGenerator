@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+
+  # ─── Ollama — Local LLM server ───────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: test-case-generator-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"           # Expose for debugging; UI talks via nginx proxy
+    volumes:
+      - ollama-data:/root/.ollama   # Persist downloaded models across restarts
+      - ./ollama-init/start.sh:/start.sh
+    entrypoint: ["/bin/sh", "/start.sh"]
+    environment:
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-llama3}
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ─── Test Case Generator UI — nginx serving the web app ─────────────────────
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: test-case-generator-ui
+    restart: unless-stopped
+    ports:
+      - "3000:80"               # Access the app at http://localhost:3000
+    environment:
+      - JIRA_DOMAIN=${JIRA_DOMAIN}
+      - JIRA_EMAIL=${JIRA_EMAIL}
+      - JIRA_API_TOKEN=${JIRA_API_TOKEN}
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+volumes:
+  ollama-data:
+    name: test-case-generator-ollama-models   # Named volume — survives docker compose down

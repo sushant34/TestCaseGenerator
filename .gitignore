@@ -1,0 +1,16 @@
+# Credentials
+.env
+
+# Dependencies
+node_modules/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Temporary Files
+curl_out.txt
+*.log
+
+# Docker
+.dockerignore
