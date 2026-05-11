@@ -1,11 +1,11 @@
-# ⬡ Test Case Generator — Local AI
+Test Case Generator — Local AI
 
 > Agentic AI test case generator powered by Ollama (local LLM).
 > Runs 100% on your machine — no API keys, no cloud, no cost.
 
----
 
-## 🚀 Quick Start (Docker Desktop)
+
+Quick Start (Docker Desktop)
 
 ### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
@@ -42,7 +42,7 @@ The status bar at the top shows Ollama health. Once green — you're ready!
 
 ---
 
-## 🔄 Changing the Model
+Changing the Model
 
 Edit `.env`:
 ```
@@ -61,7 +61,7 @@ Then select it in the model dropdown in the UI.
 
 ---
 
-## 🛑 Stop / Start
+Stop / Start
 
 ```bash
 # Stop (keeps model data)
@@ -76,7 +76,7 @@ docker compose down -v
 
 ---
 
-## 🏗️ Architecture
+#Architecture
 
 ```
 Browser
@@ -94,7 +94,7 @@ Nginx proxies `/ollama/` → `ollama:11434` so the browser only talks to one ori
 
 ---
 
-## 🐛 Troubleshooting
+ Troubleshooting
 
 | Problem | Fix |
 |---|---|
@@ -122,7 +122,7 @@ Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-nat
 
 ---
 
-## 📦 Model Recommendations
+ Model Recommendations
 
 | Model | Size | Best for |
 |---|---|---|
