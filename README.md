@@ -120,18 +120,6 @@ Add this to the `ollama` service in `docker-compose.yml`:
 ```
 Requires [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
 
----
 
- Model Recommendations
-
-| Model | Size | Best for |
-|---|---|---|
-| llama3 | 4.7 GB | Best overall quality |
-| mistral | 4.1 GB | Reliable JSON output ✅ |
-| gemma3 | 3.3 GB | Faster, lighter |
-| qwen2 | 4.4 GB | Good for structured tasks |
-| phi3 | 2.3 GB | Fastest, smallest RAM |
-
----
 
 
