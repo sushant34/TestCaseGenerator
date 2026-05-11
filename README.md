@@ -106,7 +106,7 @@ Nginx proxies `/ollama/` → `ollama:11434` so the browser only talks to one ori
 
 ---
 
-## ⚡ GPU Acceleration (optional, NVIDIA only)
+GPU Acceleration (optional, NVIDIA only)
 
 Add this to the `ollama` service in `docker-compose.yml`:
 ```yaml
